@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+
+{% block title %}Список сотрудников{% endblock %}
+
+{% block content %}
+<h1 style="font-size: 24px;">Список сотрудников</h1>
+<form method="GET" action="{% url 'employee_list' %}">
+    <label for="filter">Фильтр по имени или должности:</label>
+    <input type="text" id="filter" name="filter" value="{{ request.GET.filter }}">
+    <button type="submit">Применить фильтр</button>
+</form>
+<ul>
+    {% for employee in employees %}
+        <li>
+            <a href="{% url 'employee_detail' employee.id %}">
+                <img src="{{ employee.photo_url }}" alt="{{ employee.title }}">
+                <h2>{{ employee.title }}</h2>
+                <p>{{ employee.role }}</p>
+                {% comment %} <a href="{% url 'delete_employee' employee.id %}" onclick="return confirm('Вы уверены, что хотите удалить сотрудника?')" class="delete-button">Удалить</a> {% endcomment %}
+            </a>
+        </li>
+    {% endfor %}
+</ul>
+{% endblock %}
