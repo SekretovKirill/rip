@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+
+{% block title %}Подробная информация о сотруднике{% endblock %}
+{% block content %}
+<h1 style="font-size: 24px;">Подробная информация о сотруднике</h1>
+<div>
+   <img src="{{ employee.photo_url }}" alt="{{ employee.title }}">
+   <h2>{{ employee.title }}</h2>
+   <p>Должность: {{ employee.role }}</p>
+   <p>{{ employee.other_data }}</p>
+</div>
+{% endblock %}
