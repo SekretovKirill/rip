@@ -20,8 +20,7 @@ from baseapp import views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('hello/', views.hello),
     path('', views.employee_list, name='employee_list'),
     path('employees/<int:employee_id>/', views.employee_detail, name='employee_detail'),
-    # path('employee/delete/<int:id>/', views.delete_employee, name='delete_employee'),
+    path('employee/delete/<int:id>/', views.delete_employee, name='delete_employee'),
 ]

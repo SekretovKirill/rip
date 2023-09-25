@@ -13,10 +13,10 @@
     {% for employee in employees %}
         <li>
             <a href="{% url 'employee_detail' employee.id %}">
-                <img src="{{ employee.photo_url }}" alt="{{ employee.title }}">
-                <h2>{{ employee.title }}</h2>
+                <img src="{{ employee.photo.url }}" alt="{{ employee.name }}">
+                <h2>{{ employee.name }}</h2>
                 <p>{{ employee.role }}</p>
-                {% comment %} <a href="{% url 'delete_employee' employee.id %}" onclick="return confirm('Вы уверены, что хотите удалить сотрудника?')" class="delete-button">Удалить</a> {% endcomment %}
+                <a href="{% url 'delete_employee' employee.id %}" onclick="return confirm('Вы уверены, что хотите удалить сотрудника?')" class="delete-button">Удалить</a>
             </a>
         </li>
     {% endfor %}

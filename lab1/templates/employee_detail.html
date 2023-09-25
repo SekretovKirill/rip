@@ -4,9 +4,9 @@
 {% block content %}
 <h1 style="font-size: 24px;">Подробная информация о сотруднике</h1>
 <div>
-   <img src="{{ employee.photo_url }}" alt="{{ employee.title }}">
-   <h2>{{ employee.title }}</h2>
+   <img src="{{ employee.photo.url }}" alt="{{ employee.name }}">
+   <h2>{{ employee.name }}</h2>
    <p>Должность: {{ employee.role }}</p>
-   <p>{{ employee.other_data }}</p>
+   <p>{{ employee.info }}</p>
 </div>
 {% endblock %}
