@@ -16,8 +16,11 @@
                 <img src="{{ employee.photo.url }}" alt="{{ employee.name }}">
                 <h2>{{ employee.name }}</h2>
                 <p>{{ employee.role }}</p>
-                <a href="{% url 'delete_employee' employee.id %}" onclick="return confirm('Вы уверены, что хотите удалить сотрудника?')" class="delete-button">Удалить</a>
             </a>
+            <form method="post" action="{% url 'delete_employee' employee.id %}">
+                {% csrf_token %}
+                <button onclick="return confirm('Вы уверены, что хотите удалить сотрудника?')" class="delete-button" type="submit">Удалить</button>
+            </form>
         </li>
     {% endfor %}
 </ul>

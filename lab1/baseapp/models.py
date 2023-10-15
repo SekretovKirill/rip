@@ -52,8 +52,8 @@ class Requests(models.Model):
         db_table = "requests"
         verbose_name_plural = "Requests"
 
+
 class Request_Employees(models.Model):
-    id = models.AutoField(primary_key=True)
     request = models.ForeignKey(Requests, on_delete=models.CASCADE)
     employee = models.ForeignKey(Employees, on_delete=models.CASCADE)
 
@@ -63,3 +63,8 @@ class Request_Employees(models.Model):
     class Meta:
         db_table = "request_employees"
         verbose_name_plural = "Request Employees"
+        constraints = [
+            models.UniqueConstraint(fields=['request', 'employee'], name='unique_request_employee')
+        ]
+
+

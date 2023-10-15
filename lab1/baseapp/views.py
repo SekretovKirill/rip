@@ -4,16 +4,16 @@ from django.db import connection
 from .models import Employees
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
-
-# def delete_employee(request, id):
-#     employee = get_object_or_404(Employees, pk=id)
-#     employee.delete()
-#     return redirect('employee_list')
+from django.shortcuts import redirect
 
 def delete_employee(request, id):
-    with connection.cursor() as cursor:
-        cursor.execute("UPDATE Employees SET status = False WHERE id = %s;", [id])
-    return redirect('employee_list')
+    if request.method == 'POST':
+        with connection.cursor() as cursor:
+            cursor.execute("UPDATE Employees SET status = False WHERE id = %s;", [id])
+        return redirect('employee_list')
+
+    # В случае GET запроса, возможно, выполните другие действия, например, показ страницы подтверждения удаления.
+
 
 def employee_list(request):
     filtered_employees = Employees.objects.filter(status=True)
