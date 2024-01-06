@@ -1,12 +1,14 @@
 import ast
+import requests
 from operator import itemgetter
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 from rest_framework import status
-from stocks.serializers import EmployeesSerializer, RequestsSerializer, PhotoSerializer
+from stocks.serializers import EmployeesSerializer, RequestsSerializer, PhotoSerializer, SecuritySerializer
 from stocks.models import Employees, Requests, Request_Employees, Users
 from rest_framework.decorators import api_view
 from django.db.models import Q
+from django.db import transaction
 from datetime import datetime
 from io import BytesIO
 from PIL import Image
@@ -65,7 +67,7 @@ def get_employees(request, format=None):
     else:
         employees = Employees.objects.filter(status=True)
 
-    serializer = EmployeesSerializer(employees, many=True)
+    serializer = PhotoSerializer(employees, many=True)
 
     return Response(serializer.data)
 
@@ -185,16 +187,21 @@ def get_requests_by_pk(request, pk):
         employees = Request_Employees.objects.filter(request=request)
         employee_ids = employees.values_list("employee", flat=True)
         related_employees = Employees.objects.filter(id__in=employee_ids, status=True)
+        related_req_emp = Request_Employees.objects.filter(employee__in=employee_ids, request=pk)
         
         # Сериализация заявки
         request_serializer = RequestsSerializer(request)
         
         # Сериализация связанных сотрудников
         employees_serializer = EmployeesSerializer(related_employees, many=True)
-        
-        # Добавление информации о сотрудниках к информации о заявке
+
+        req_emp_serializer = SecuritySerializer(related_req_emp, many=True)
         request_data = request_serializer.data
-        request_data["related_employees"] = employees_serializer.data
+        employees_data = employees_serializer.data
+        for employee_data in employees_data:
+            security_info = next((item["security"] for item in req_emp_serializer.data if item["employee"] == employee_data["id"]), None)
+            employee_data["security"] = security_info
+        request_data["related_employees"] = employees_data
         
         return Response(request_data)
     except Requests.DoesNotExist:
@@ -350,3 +357,50 @@ def remove_employee_from_request(request):
         return Response({"message": "Сотрудник успешно удален из заявки"}, status=status.HTTP_200_OK)
     except (Requests.DoesNotExist, Employees.DoesNotExist):
         return Response({"message": "Заявка или сотрудник не найдены"}, status=status.HTTP_404_NOT_FOUND)
+    
+# ############################  async service  ##############################################
+
+
+@api_view(['PUT'])
+def put_security(request, employee_id,request_id):
+    security_value = request.data.get('security_value')
+    key = request.data.get('key')
+    if key != 'Psq958lBV':
+        return Response({"error": "Ключ неверен"}, status=status.HTTP_401_UNAUTHORIZED)
+    else:
+        try:
+            target_request = Requests.objects.get(id=request_id)
+            target_employee = Employees.objects.get(id=employee_id)
+
+            req_emp_list = Request_Employees.objects.filter(request=target_request, employee=target_employee)
+
+            with transaction.atomic():
+                req_emp_list.update(security=security_value)
+
+            return Response({"security": security_value}, status=status.HTTP_200_OK)
+
+        except Requests.DoesNotExist:
+            return Response({"error": "Заявка не найдена"}, status=status.HTTP_404_NOT_FOUND)
+
+        except Employees.DoesNotExist:
+            return Response({"error": "Сотрудник не найден"}, status=status.HTTP_404_NOT_FOUND)
+
+        except Request_Employees.DoesNotExist:
+            return Response({"error": "Связь не найдена"}, status=status.HTTP_404_NOT_FOUND)
+
+@api_view(['POST'])
+def send_security(request, request_id, employee_id):
+    data = {
+        'employee_id': employee_id,
+        'request_id': request_id,
+    }
+
+    try:
+        response = requests.post('http://192.168.43.241:8080/check/', data=data)
+
+        if response.status_code == 200:
+            return Response({'message': 'Запрос успешно отправлен'}, status=status.HTTP_200_OK)
+        else:
+            return Response({'error': 'Не удалось отправить запрос. Статус ответа: {}'.format(response.status_code)}, status=500)
+    except Exception as e:
+        return Response({'error': 'Error: {}'.format(str(e))}, status=500)

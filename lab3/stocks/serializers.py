@@ -1,4 +1,4 @@
-from stocks.models import Employees, Requests
+from stocks.models import Employees, Requests, Request_Employees
 from rest_framework import serializers
 
 
@@ -9,6 +9,11 @@ class EmployeesSerializer(serializers.ModelSerializer):
         model = Employees
         # Поля, которые мы сериализуем
         fields = ["id", "name", "status", "role", "info"]
+
+class SecuritySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Request_Employees
+        fields = ["employee", "security"]
 
 class PhotoSerializer(serializers.ModelSerializer):
     class Meta:

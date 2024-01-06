@@ -58,9 +58,10 @@ class Requests(models.Model):
 class Request_Employees(models.Model):
     request = models.ForeignKey(Requests, on_delete=models.CASCADE)
     employee = models.ForeignKey(Employees, on_delete=models.CASCADE)
+    security = models.BooleanField(null=True)
 
     def __str__(self):
-        return f"Request {self.request_id} - Employee {self.employee_id}"
+        return f"Request {self.request_id} - Employee {self.employee_id} - Security {self.security}"
 
     class Meta:
         db_table = "request_employees"

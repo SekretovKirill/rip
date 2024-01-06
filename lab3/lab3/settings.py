@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-g_j9vjnyu*q#q65ezi@zb_kkf_^*un_8((+^hx$3y+miyy%3c2
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["192.168.1.132", "192.168.43.241"]
 
 
 # Application definition
@@ -85,7 +85,7 @@ DATABASES = {
         'NAME': 'mgtu',
         'USER': 'student',
         'PASSWORD': 'root',
-        'HOST': '192.168.43.241',  # Обычно 'localhost' для локальной базы данных
+        'HOST': '192.168.1.132',  # Обычно 'localhost' для локальной базы данных
         'PORT': '5432',  # Обычно '5432' для PostgreSQL
     }
 }

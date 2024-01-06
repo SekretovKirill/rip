@@ -45,4 +45,8 @@ urlpatterns = [
     path(r'add-employee-to-request/<int:pk>/', views.add_employee_to_request, name='add-employee-to-request'),
 
     path('admin/', admin.site.urls),
+
+    path(r'put_security/<int:employee_id>/<int:request_id>/', views.put_security, name='put-security'),
+    path(r'send_security/<int:employee_id>/<int:request_id>/', views.send_security, name='send_security'),
+    
 ]
