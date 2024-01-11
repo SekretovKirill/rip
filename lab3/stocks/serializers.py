@@ -1,5 +1,6 @@
-from stocks.models import Employees, Requests, Request_Employees
+from stocks.models import Employees, Requests, Request_Employees, Users
 from rest_framework import serializers
+from collections import OrderedDict
 
 
 
@@ -9,11 +10,23 @@ class EmployeesSerializer(serializers.ModelSerializer):
         model = Employees
         # Поля, которые мы сериализуем
         fields = ["id", "name", "status", "role", "info"]
+        def get_fields(self):
+            new_fields = OrderedDict()
+            for name, field in super().get_fields().items():
+                field.required = False
+                new_fields[name] = field
+            return new_fields 
 
 class SecuritySerializer(serializers.ModelSerializer):
     class Meta:
         model = Request_Employees
         fields = ["employee", "security"]
+        def get_fields(self):
+            new_fields = OrderedDict()
+            for name, field in super().get_fields().items():
+                field.required = False
+                new_fields[name] = field
+            return new_fields 
 
 class PhotoSerializer(serializers.ModelSerializer):
     class Meta:
@@ -27,4 +40,10 @@ class RequestsSerializer(serializers.ModelSerializer):
         # Модель, которую мы сериализуем
         model = Requests
         # Поля, которые мы сериализуем
-        fields = ["id", "status", "name", "info", "created_date", "formation_date", "completion_date", "moderator_id"]
+        fields = ["id", "status", "name", "info", "created_date", "formation_date", "completion_date", "client"]
+        extra_kwargs = {'status': {'required': False}, 'client': {'required': False}} 
+
+class UsersSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Users
+        fields = '__all__'

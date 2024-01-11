@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-g_j9vjnyu*q#q65ezi@zb_kkf_^*un_8((+^hx$3y+miyy%3c2
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["192.168.1.132", "192.168.43.241"]
+ALLOWED_HOSTS = ["192.168.1.132", "192.168.43.241","127.0.0.1"]
 
 
 # Application definition
@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'drf_yasg',
 
     # DRF
     'rest_framework',
@@ -44,6 +45,16 @@ INSTALLED_APPS = [
     # Наше приложение
     'stocks',
 ]
+
+# REST_FRAMEWORK = {
+#     'DEFAULT_AUTHENTICATION_CLASSES': [
+#         'rest_framework.authentication.BasicAuthentication',
+#         'rest_framework.authentication.SessionAuthentication',
+#     ],
+#     'DEFAULT_PERMISSION_CLASSES': [
+#         'rest_framework.permissions.IsAuthenticatedOrReadOnly',
+#     ]      
+# }
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -87,8 +98,11 @@ DATABASES = {
         'PASSWORD': 'root',
         'HOST': '192.168.1.132',  # Обычно 'localhost' для локальной базы данных
         'PORT': '5432',  # Обычно '5432' для PostgreSQL
+        
     }
 }
+REDIS_HOST = '0.0.0.0'
+REDIS_PORT = 6379
 # Password validation
 # https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators
 
