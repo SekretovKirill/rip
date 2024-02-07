@@ -44,7 +44,7 @@ class Requests(models.Model):
     created_date = models.DateTimeField(auto_now_add=True)
     formation_date = models.DateTimeField(null=True, blank=True, auto_now=True)
     completion_date = models.DateTimeField(null=True, blank=True)
-    moderator = models.ForeignKey(Users, on_delete=models.CASCADE, related_name='moderated_requests')
+    moderator = models.ForeignKey(Users, on_delete=models.CASCADE, related_name='moderated_requests', null=True)
     client = models.ForeignKey(Users, on_delete=models.CASCADE, related_name='client_requests')
     info = models.CharField(max_length=255, null=True)
 

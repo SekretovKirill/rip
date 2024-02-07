@@ -40,7 +40,7 @@ class RequestsSerializer(serializers.ModelSerializer):
         # Модель, которую мы сериализуем
         model = Requests
         # Поля, которые мы сериализуем
-        fields = ["id", "status", "name", "info", "created_date", "formation_date", "completion_date", "client"]
+        fields = ["id", "status", "name", "info", "created_date", "formation_date", "completion_date", "client", "moderator"]
         extra_kwargs = {'status': {'required': False}, 'client': {'required': False}} 
 
 class UsersSerializer(serializers.ModelSerializer):

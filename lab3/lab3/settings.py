@@ -25,7 +25,8 @@ SECRET_KEY = 'django-insecure-g_j9vjnyu*q#q65ezi@zb_kkf_^*un_8((+^hx$3y+miyy%3c2
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["192.168.1.132", "192.168.43.241","127.0.0.1"]
+ALLOWED_HOSTS = ['*']
+# ALLOWED_HOSTS = ["192.168.1.132", "192.168.43.241","127.0.0.1"]
 
 
 # Application definition
@@ -37,10 +38,12 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'corsheaders',
     'drf_yasg',
 
     # DRF
     'rest_framework',
+    'rest_framework_simplejwt',
 
     # Наше приложение
     'stocks',
@@ -55,16 +58,50 @@ INSTALLED_APPS = [
 #         'rest_framework.permissions.IsAuthenticatedOrReadOnly',
 #     ]      
 # }
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ),
+}
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
+    # 'lab3.cors_middleware.CorsMiddleware'
     'django.middleware.csrf.CsrfViewMiddleware',
+    # 'corsheaders.middleware.CorsMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+
 ]
+
+# CORS_ALLOW_ALL_ORIGINS = True
+
+
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",  # Add the origin of your React frontend
+]
+
+CORS_ALLOW_METHODS = [
+    'DELETE',
+    'GET',
+    'OPTIONS',
+    'PATCH',
+    'POST',
+    'PUT',
+]
+
+CORS_ALLOW_HEADERS = [
+    'Origin',
+    'X-Requested-With',
+    'Content-Type',
+    'Accept',
+    'Z-Key',
+]
+
+CORS_ALLOW_CREDENTIALS = True
 
 ROOT_URLCONF = 'lab3.urls'
 
@@ -84,7 +121,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'lab3.wsgi.application'
+# WSGI_APPLICATION = 'lab3.wsgi.application'
 
 
 # Database

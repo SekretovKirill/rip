@@ -18,12 +18,22 @@ from PIL import Image
 from drf_yasg import openapi
 import hashlib
 import secrets
+from django.utils.dateparse import parse_date
 import requests
+from django.middleware import csrf
+from django.http import HttpResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods
+from jose import jwt
+from django.conf import settings
+
+
 
 #-----------------------------auth-------------------------------
 def check_authorize(request):
     existing_session = request.COOKIES.get('session_key')
-    
+    # existing_session = request.headers.get('Authorization', '').split('Bearer ')[-1]
+    print(existing_session)
     if existing_session and get_value(existing_session):
         user_id = get_value(existing_session)
         try:
@@ -31,8 +41,20 @@ def check_authorize(request):
             return user
         except Users.DoesNotExist:
             pass
-    
     return None
+
+# def check_authorize(request):
+#     token = request.headers.get('Authorization', '').split('Bearer ')[-1]
+#     if token:
+#         try:
+#             payload = jwt.decode(token, settings.SECRET_KEY, algorithms=['HS256'])
+#             user_id = payload.get('user_id')
+#             user = Users.objects.get(id=user_id)
+#             return user
+#         except (jwt.JWTError, Users.DoesNotExist):
+#             pass
+
+#     return None
 
 @swagger_auto_schema(
     method='post',
@@ -92,6 +114,9 @@ def register(request, format=None):
 @api_view(['POST'])
 def login(request, format=None):
     existing_session = request.COOKIES.get('session_key')
+    # print(1)
+    # existing_session = request.headers.get('Authorization', '').split('Bearer ')[-1]
+    print(existing_session)
 
     if existing_session and get_value(existing_session):
         return Response({'User_id': get_value(existing_session)})
@@ -113,7 +138,10 @@ def login(request, format=None):
         set_key(session_hash, user.id)
 
         serialize = UsersSerializer(user)
-        response = Response(serialize.data)
+        serialized_data = serialize.data
+        serialized_data['session_key'] = session_hash
+
+        response = Response(serialized_data)
         response.set_cookie('session_key', session_hash, max_age=86400)
         return response
 
@@ -153,7 +181,7 @@ def image_to_binary(image_data):
     operation_summary="Добавляет новую фотографию сотруднику",
     request_body=openapi.Schema(
         type=openapi.TYPE_OBJECT,
-        required=['name', 'status', 'role', 'info', 'photo_binary'],
+        required=['name', 'status', 'role', 'info'],
         properties={
             'name': openapi.Schema(type=openapi.TYPE_STRING),
             'status': openapi.Schema(type=openapi.TYPE_BOOLEAN),
@@ -199,7 +227,7 @@ def get_photo_by_pk(request, pk):
 
     return Response(serializer.data)
 
-@swagger_auto_schema(method='get', operation_summary="Возвращает список сотрудников", responses={200: EmployeesSerializer(many=True)})
+@swagger_auto_schema(method='get', operation_summary="Возвращает список сотрудников", responses={200: PhotoSerializer(many=True)})
 @api_view(['Get'])
 def get_employees(request, format=None):
     filter_param = request.GET.get('filter')
@@ -209,6 +237,22 @@ def get_employees(request, format=None):
         ).filter(status=True)
     else:
         employees = Employees.objects.filter(status=True)
+    user = check_authorize(request)
+    if user and user.role == 'User':
+        draft = Requests.objects.filter(client=user, status='entered').first()
+        if draft:
+            # Если у пользователя есть активная заявка, добавьте ее данные перед списком событий
+            employees_data = PhotoSerializer(employees, many=True).data
+            response_data = {'employees': employees_data, 'draft_id': draft.id}
+            return Response(response_data)
+        else:
+            employees_data = PhotoSerializer(employees, many=True).data
+            response_data = {'employees': employees_data, 'draft_id': None}
+            return Response(response_data)
+    else:
+        employees_data = PhotoSerializer(employees, many=True).data
+        response_data = {'employees': employees_data, 'draft_id': None}
+        return Response(response_data)
 
     serializer = PhotoSerializer(employees, many=True)
 
@@ -261,12 +305,23 @@ def get_employees_by_pk(request, pk):
 def post_employees(request, format=None):
     user = check_authorize(request)
     if not (user and user.role == 'Admin'):
+        print(request)
         return Response({'error': 'необходима авторизация'}, status=status.HTTP_401_UNAUTHORIZED)
+    if 'photo_binary' in request.data:
+        image_data = request.data.pop('photo_binary')[0].read()
+        image_binary = image_to_binary(image_data)
+        serializer = PhotoSerializer(data=request.data)
+    else:
+        serializer = EmployeesSerializer(data=request.data)
     
-    serializer = EmployeesSerializer(data=request.data)
     if serializer.is_valid():
-        serializer.save()
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        if image_binary:
+            serializer.save(photo_binary=image_binary)
+        else:
+            serializer.save()
+        ser_data=serializer.data
+        ser_data.status=True
+        return Response(ser_data, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 @swagger_auto_schema(
@@ -278,9 +333,10 @@ def post_employees(request, format=None):
 @api_view(['Put'])
 def put_employees(request, pk, format=None):
     user = check_authorize(request)
-    if not (user and user.role == 'Admin'):
+    if not user:
         return Response({'error': 'необходима авторизация'}, status=status.HTTP_401_UNAUTHORIZED)
-    
+    if not user.role == 'Admin':
+        return Response({'error': 'необходима авторизация за администратора'}, status=status.HTTP_403_FORBIDDEN)
     stock = get_object_or_404(Employees, pk=pk)
     serializer = EmployeesSerializer(stock, data=request.data)
     if serializer.is_valid():
@@ -288,17 +344,20 @@ def put_employees(request, pk, format=None):
         return Response(serializer.data)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-@swagger_auto_schema(
-    method='delete',
-    operation_summary="Удаляет информацию о сотруднике",
-    responses={200: 'OK', 404: 'Not Found'}
-)
-@api_view(['Delete'])
+# @require_http_methods(["DELETE", "OPTIONS"])
+# @csrf_exempt
+# @swagger_auto_schema(
+#     method='post',
+#     operation_summary="Удаляет информацию о сотруднике",
+#     responses={200: 'OK', 404: 'Not Found'}
+# )
+# @require_http_methods(["DELETE"])
+# @csrf_exempt
+@api_view(['Put'])
 def delete_employees(request, pk, format=None):    
     user = check_authorize(request)
     if not (user and user.role == 'Admin'):
         return Response({'error': 'необходима авторизация'}, status=status.HTTP_401_UNAUTHORIZED)
-    
     group = Employees.objects.get(pk=pk)
     if group.status == False:
         return Response(f"Employee с id {pk} не существует!", status=404)
@@ -306,6 +365,11 @@ def delete_employees(request, pk, format=None):
     group.save()
     groups = Employees.objects.filter(status=True)
     serializer = EmployeesSerializer(groups, many=True)
+    # response = HttpResponse()
+    # response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+    # response['Access-Control-Allow-Methods'] = 'DELETE, GET, OPTIONS, PATCH, POST, PUT'
+    # response['Access-Control-Allow-Headers'] = 'Origin, X-Requested-With, Content-Type, Accept, Z-Key'
+    # response['Access-Control-Allow-Credentials'] = 'true'
     return Response(serializer.data)
 
 #---------------------------------------------------------------------
@@ -314,17 +378,29 @@ def delete_employees(request, pk, format=None):
     operation_summary="Возвращает список всех заявок с сотрудниками",
     responses={200: 'OK'}
 )
-@api_view(['Get'])
+@api_view(['GET'])
 def get_requests(request, format=None):
-        # Получаем все заявки, которые не были удалены
+    # Получаем все заявки, которые не были удалены
     user = check_authorize(request)
+    start_date = request.query_params.get('start_date')
+    end_date = request.query_params.get('end_date')
+    Status = request.query_params.get('status')
     if not user:
         return Response({'error': 'необходима авторизация'}, status=status.HTTP_401_UNAUTHORIZED)
 
     if user.role == 'Admin':
-        requests = Requests.objects.exclude(status='deleted')
+        requests = Requests.objects.exclude(status__in=['deleted', 'entered'])
     elif user.role == 'User':
-        requests = Requests.objects.filter(client=user, status='entered')
+        requests = Requests.objects.exclude(status='deleted').filter(status='completed')
+    if start_date:
+        start_date = parse_date(start_date)
+        requests = requests.filter(formation_date__gte=start_date)
+    if end_date:
+        end_date = parse_date(end_date)
+        requests = requests.filter(formation_date__lte=end_date)
+    if Status:
+        requests = requests.filter(status=Status)
+    
     # Инициализируем пустой список для хранения конечных данных ответа
     response_data = []
 
@@ -335,20 +411,38 @@ def get_requests(request, format=None):
         # Инициализируем список данных о сотрудниках
         employee_data = []
 
+        # Переменная для подсчета количества True значений поля security
+        true_security_count = 0
+
         for request_employee in request_employees:
             # Получить связанные с сотрудником данные
             employee = request_employee.employee
+            
+            # Сериализация сотрудника с учетом поля security
+            employee_serializer = EmployeesSerializer(employee)
+            security_info = Request_Employees.objects.get(request=request, employee=employee).security
+            employees_data = employee_serializer.data
+            employees_data["security"] = security_info
             employee_data.append({
-                "employee": EmployeesSerializer(employee).data
+                "employee": employees_data
             })
 
+            # Подсчет True значений поля security
+            if security_info == True or security_info == False:
+                true_security_count += 1
+
+        # Добавление количества True security полей к заявке
         request_data = RequestsSerializer(request).data
+        request_data["security_count"] = true_security_count
+
         response_data.append({
             "request": request_data,
             "related_employees": employee_data
         })
 
     return Response(response_data)
+
+
 
 @swagger_auto_schema(
     method='get',
@@ -377,7 +471,7 @@ def get_requests_by_pk(request, pk):
             request_serializer = RequestsSerializer(request)
             
             # Сериализация связанных сотрудников
-            employees_serializer = EmployeesSerializer(related_employees, many=True)
+            employees_serializer = PhotoSerializer(related_employees, many=True)
 
             req_emp_serializer = SecuritySerializer(related_req_emp, many=True)
             request_data = request_serializer.data
@@ -432,8 +526,10 @@ status_choices = (
 @api_view(['PUT'])
 def put_requests(request, pk, format=None):
     user = check_authorize(request)
-    if not (user and user.role == 'Admin'):
+    if not user:
         return Response({'error': 'необходима авторизация'}, status=status.HTTP_401_UNAUTHORIZED)
+    if not user.role == 'Admin':
+        return Response({'error': 'необходима авторизация за администратора'}, status=status.HTTP_403_FORBIDDEN)
     if not Requests.objects.filter(pk=pk).exists():
         return Response(f"Запроса с таким id не существует!")
     if 'status' in request.data:
@@ -456,9 +552,7 @@ def put_requests(request, pk, format=None):
     request_body=openapi.Schema(
         type=openapi.TYPE_OBJECT,
         properties={
-            'name': openapi.Schema(type=openapi.TYPE_STRING),
             'status': openapi.Schema(type=openapi.TYPE_STRING),
-            'info': openapi.Schema(type=openapi.TYPE_STRING),
         },
     required=['status']
     ),
@@ -477,7 +571,7 @@ def put_requests_user(request, pk, format=None):
         return Response({'error': 'Доступ запрещен'}, status=status.HTTP_403_FORBIDDEN)
     if request_obj.status != "entered":
         return Response({"detail": "Заявка не является черновиком"}, status=status.HTTP_400_BAD_REQUEST)
-    request_status = request.data.get("status")
+    request_status = 'in progress'
     if request_status in ['in progress']:
         request_obj.status = request_status
         request_obj.formation_date = datetime.now()
@@ -505,6 +599,7 @@ def put_requests_user(request, pk, format=None):
     ),
     responses={200: 'OK', 400: 'Bad Request'}
 )
+@csrf_exempt
 @api_view(['PUT'])
 def put_requests_admin(request, pk, format=None):
     user = check_authorize(request)
@@ -524,15 +619,24 @@ def put_requests_admin(request, pk, format=None):
             request_obj.completion_date = datetime.now()
         request_obj.status = request_status
         request_obj.formation_date = datetime.now()
+        request_obj.moderator = user.id,
         request_obj.save()
         serializer = RequestsSerializer(request_obj, data=request.data)
         if serializer.is_valid():
             serializer.save()
-            return Response(serializer.data)
+            response = Response(serializer.data)
         else:
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            response = Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     else:
-        return Response({"detail": "Неверный статус. Используйте ''completed' или 'canceled'"}, status=status.HTTP_400_BAD_REQUEST)
+        response = Response({"detail": "Неверный статус. Используйте 'completed' или 'canceled'"}, status=status.HTTP_400_BAD_REQUEST)
+    
+    # Добавляем заголовки CORS
+    response["Access-Control-Allow-Origin"] = "http://localhost:3000/"  # Разрешить доступ с любых доменов
+    response["Access-Control-Allow-Methods"] = "PUT"  # Разрешенный метод
+    response["Access-Control-Allow-Headers"] = "Content-Type"  # Разрешенные заголовки
+    response['Access-Control-Allow-Credentials']= 'true'
+    
+    return response
 
 @swagger_auto_schema(
     method='delete',
@@ -562,27 +666,18 @@ def delete_requests(request, pk, format=None):
 @swagger_auto_schema(
     method='post',
     operation_summary="Добавляет сотрудника к заявке",
-    request_body=openapi.Schema(
-        type=openapi.TYPE_OBJECT,
-        properties={
-            'name': openapi.Schema(type=openapi.TYPE_STRING),
-            'info': openapi.Schema(type=openapi.TYPE_STRING),
-        },
-    ),
     responses={201: 'Created', 404: 'Not Found'}
 )
 @api_view(['POST'])
 def add_employee_to_request(request, pk, format=None):
     user = check_authorize(request)
-    if not (user and user.Role == 'User'):
+    if not (user and user.role == 'User'):
         return Response({'error': 'необходима авторизация'}, status=status.HTTP_401_UNAUTHORIZED)
     
-    name = request.data.get('name')
-    info = request.data.get('info')
     try:
-        request_instance = Requests.objects.get(moderator = Users.objects.get(id=1), status="entered", client = user)
+        request_instance = Requests.objects.get(status="entered", client = user)
     except Requests.DoesNotExist:
-        request_instance = Requests.objects.create(moderator = Users.objects.get(id=1), status='entered', name = name, info = info, created_date = datetime.now())
+        request_instance = Requests.objects.create(status='entered', created_date = datetime.now(), name='Заявка', client_id=user.id)
         request_instance.save()
 
     try:
@@ -637,7 +732,7 @@ def add_employee_to_request(request, pk, format=None):
         ),
     responses={200: 'OK', 404: 'Not Found'}
 )
-@api_view(['DELETE'])
+@api_view(['delete'])
 def remove_employee_from_request(request):
     user = check_authorize(request)
     if not (user and user.role == 'User'):
@@ -704,13 +799,6 @@ def put_security(request, employee_id,request_id):
 
 @swagger_auto_schema(
     method='post',
-    request_body=openapi.Schema(
-        type=openapi.TYPE_OBJECT,
-        required=['key'],
-        properties={
-            'key': openapi.Schema(type=openapi.TYPE_STRING),
-        },
-    ),
     responses={200: 'OK', 500: 'Internal Server Error'},
     operation_summary="Отправляет запрос на безопасность"
 )
