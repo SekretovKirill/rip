@@ -344,16 +344,16 @@ def put_employees(request, pk, format=None):
         return Response(serializer.data)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-# @require_http_methods(["DELETE", "OPTIONS"])
-# @csrf_exempt
-# @swagger_auto_schema(
-#     method='post',
-#     operation_summary="Удаляет информацию о сотруднике",
-#     responses={200: 'OK', 404: 'Not Found'}
-# )
-# @require_http_methods(["DELETE"])
-# @csrf_exempt
-@api_view(['Put'])
+@require_http_methods(["DELETE", "OPTIONS"])
+@csrf_exempt
+@swagger_auto_schema(
+    method='post',
+    operation_summary="Удаляет информацию о сотруднике",
+    responses={200: 'OK', 404: 'Not Found'}
+)
+@require_http_methods(["DELETE"])
+@csrf_exempt
+@api_view(['delete'])
 def delete_employees(request, pk, format=None):    
     user = check_authorize(request)
     if not (user and user.role == 'Admin'):
