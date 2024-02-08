@@ -196,8 +196,10 @@ def image_to_binary(image_data):
 @api_view(['PUT'])
 def put_photo(request, pk, format=None): 
     user = check_authorize(request)
-    if not (user and user.role == 'Admin'):
+    if not user:
         return Response({'error': 'необходима авторизация'}, status=status.HTTP_401_UNAUTHORIZED)
+    elif not (user.role == 'Admin'):
+        return Response({'error': 'недостаточно прав'}, status=status.HTTP_403_FORBIDDEN)
        
     stock = get_object_or_404(Employees, pk=pk)
     image_binary = None
@@ -304,9 +306,10 @@ def get_employees_by_pk(request, pk):
 @api_view(['Post'])
 def post_employees(request, format=None):
     user = check_authorize(request)
-    if not (user and user.role == 'Admin'):
-        print(request)
+    if not user:
         return Response({'error': 'необходима авторизация'}, status=status.HTTP_401_UNAUTHORIZED)
+    elif not (user.role == 'Admin'):
+        return Response({'error': 'недостаточно прав'}, status=status.HTTP_403_FORBIDDEN)
     if 'photo_binary' in request.data:
         image_data = request.data.pop('photo_binary')[0].read()
         image_binary = image_to_binary(image_data)
@@ -344,20 +347,22 @@ def put_employees(request, pk, format=None):
         return Response(serializer.data)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-@require_http_methods(["DELETE", "OPTIONS"])
-@csrf_exempt
+# @require_http_methods(["DELETE", "OPTIONS"])
+# @csrf_exempt
 @swagger_auto_schema(
-    method='post',
+    method='delete',
     operation_summary="Удаляет информацию о сотруднике",
     responses={200: 'OK', 404: 'Not Found'}
 )
-@require_http_methods(["DELETE"])
-@csrf_exempt
+# @require_http_methods(["DELETE"])
+# @csrf_exempt
 @api_view(['delete'])
 def delete_employees(request, pk, format=None):    
     user = check_authorize(request)
     if not (user and user.role == 'Admin'):
         return Response({'error': 'необходима авторизация'}, status=status.HTTP_401_UNAUTHORIZED)
+    elif(user.role == 'User'):
+        return Response({'error': 'недостаточно прав'}, status=status.HTTP_403_FORBIDDEN)
     group = Employees.objects.get(pk=pk)
     if group.status == False:
         return Response(f"Employee с id {pk} не существует!", status=404)
@@ -528,8 +533,6 @@ def put_requests(request, pk, format=None):
     user = check_authorize(request)
     if not user:
         return Response({'error': 'необходима авторизация'}, status=status.HTTP_401_UNAUTHORIZED)
-    if not user.role == 'Admin':
-        return Response({'error': 'необходима авторизация за администратора'}, status=status.HTTP_403_FORBIDDEN)
     if not Requests.objects.filter(pk=pk).exists():
         return Response(f"Запроса с таким id не существует!")
     if 'status' in request.data:
@@ -561,8 +564,10 @@ def put_requests(request, pk, format=None):
 @api_view(['Put'])
 def put_requests_user(request, pk, format=None):
     user = check_authorize(request)
-    if not (user and user.role == 'User'):
+    if not user:
         return Response({'error': 'необходима авторизация'}, status=status.HTTP_401_UNAUTHORIZED)
+    elif not (user.role == 'User'):
+        return Response({'error': 'недостаточно прав'}, status=status.HTTP_403_FORBIDDEN)
     
     if not Requests.objects.filter(pk=pk).exists():
         return Response(f"Запроса с таким id не существует!")
@@ -603,8 +608,10 @@ def put_requests_user(request, pk, format=None):
 @api_view(['PUT'])
 def put_requests_admin(request, pk, format=None):
     user = check_authorize(request)
-    if not (user and user.role == 'Admin'):
-        return Response({'error': 'Необходима авторизация'}, status=status.HTTP_401_UNAUTHORIZED)
+    if not user:
+        return Response({'error': 'необходима авторизация'}, status=status.HTTP_401_UNAUTHORIZED)
+    elif not (user.role == 'Admin'):
+        return Response({'error': 'недостаточно прав'}, status=status.HTTP_403_FORBIDDEN)
     status_choices = ['completed', 'canceled']
     if not Requests.objects.filter(pk=pk).exists():
         return Response(f"Запроса с таким id не существует!")
@@ -619,8 +626,9 @@ def put_requests_admin(request, pk, format=None):
             request_obj.completion_date = datetime.now()
         request_obj.status = request_status
         request_obj.formation_date = datetime.now()
-        request_obj.moderator = user.id,
-        request_obj.save()
+        user_instance = Users.objects.get(pk=user.id)  # Получаем объект пользователя по его id
+        request_obj.moderator = user_instance  # Присваиваем объект пользователя полю moderator
+        request_obj.save()  # Сохраняем изменения
         serializer = RequestsSerializer(request_obj, data=request.data)
         if serializer.is_valid():
             serializer.save()
@@ -629,12 +637,6 @@ def put_requests_admin(request, pk, format=None):
             response = Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     else:
         response = Response({"detail": "Неверный статус. Используйте 'completed' или 'canceled'"}, status=status.HTTP_400_BAD_REQUEST)
-    
-    # Добавляем заголовки CORS
-    response["Access-Control-Allow-Origin"] = "http://localhost:3000/"  # Разрешить доступ с любых доменов
-    response["Access-Control-Allow-Methods"] = "PUT"  # Разрешенный метод
-    response["Access-Control-Allow-Headers"] = "Content-Type"  # Разрешенные заголовки
-    response['Access-Control-Allow-Credentials']= 'true'
     
     return response
 
@@ -646,9 +648,10 @@ def put_requests_admin(request, pk, format=None):
 @api_view(['Delete'])
 def delete_requests(request, pk, format=None): 
     user = check_authorize(request)
-    if not (user and user.role == 'User'):
+    if not (user):
         return Response({'error': 'Необходима авторизация'}, status=status.HTTP_401_UNAUTHORIZED)
-   
+    elif (user.role == 'Admin'):
+        return Response({'error': 'Только пользователь может удалить сотрудника из заявки'}, status=status.HTTP_403_FORBIDDEN)
     if not Requests.objects.filter(pk=pk).exists():
         return Response(f"Запроса с таким id не существует!")
     group = Requests.objects.get(pk=pk)
@@ -671,8 +674,10 @@ def delete_requests(request, pk, format=None):
 @api_view(['POST'])
 def add_employee_to_request(request, pk, format=None):
     user = check_authorize(request)
-    if not (user and user.role == 'User'):
+    if not (user):
         return Response({'error': 'необходима авторизация'}, status=status.HTTP_401_UNAUTHORIZED)
+    elif (user.role == 'Admin'):
+        return Response({'error': 'Только пользователь может удалить сотрудника из заявки'}, status=status.HTTP_403_FORBIDDEN)
     
     try:
         request_instance = Requests.objects.get(status="entered", client = user)
@@ -735,9 +740,10 @@ def add_employee_to_request(request, pk, format=None):
 @api_view(['delete'])
 def remove_employee_from_request(request):
     user = check_authorize(request)
-    if not (user and user.role == 'User'):
-        return Response({'error': 'Необходима авторизация'}, status=status.HTTP_401_UNAUTHORIZED)
-    
+    if not (user):
+        return Response({'error': 'необходима авторизация'}, status=status.HTTP_401_UNAUTHORIZED)
+    elif (user.role == 'Admin'):
+        return Response({'error': 'Только пользователь может удалить сотрудника из заявки'}, status=status.HTTP_403_FORBIDDEN)
     request_id = request.data.get('request_id')
     employee_id = request.data.get('employee_id')
 

@@ -46,4 +46,4 @@ class RequestsSerializer(serializers.ModelSerializer):
 class UsersSerializer(serializers.ModelSerializer):
     class Meta:
         model = Users
-        fields = '__all__'
+        fields = ['id', "name", "email", "role"]
