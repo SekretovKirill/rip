@@ -318,7 +318,7 @@ def post_employees(request, format=None):
         serializer = EmployeesSerializer(data=request.data)
     
     if serializer.is_valid():
-        if image_binary:
+        if 'photo_binary' in request.data:
             serializer.save(photo_binary=image_binary)
         else:
             serializer.save()
@@ -396,7 +396,7 @@ def get_requests(request, format=None):
     if user.role == 'Admin':
         requests = Requests.objects.exclude(status__in=['deleted', 'entered'])
     elif user.role == 'User':
-        requests = Requests.objects.exclude(status='deleted').filter(status='completed')
+        requests = Requests.objects.exclude(status__in=['deleted', 'entered'])
     if start_date:
         start_date = parse_date(start_date)
         requests = requests.filter(formation_date__gte=start_date)
