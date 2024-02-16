@@ -4,7 +4,11 @@
 {% block content %}
 <h1 style="font-size: 24px;">Подробная информация о сотруднике</h1>
 <div>
-   <img src="{{ employee.photo.url }}" alt="{{ employee.name }}">
+   {% if employee.photo %}
+      <img src="{{ employee.photo.url }}" alt="{{ employee.name }} Photo">
+   {% else %}
+      <img src="http://127.0.0.1:9000/mock-pics/OIG.jpg" alt="Mock Photo">
+   {% endif %}
    <h2>{{ employee.name }}</h2>
    <p>Должность: {{ employee.role }}</p>
    <p>{{ employee.info }}</p>

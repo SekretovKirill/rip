@@ -95,7 +95,7 @@ DATABASES = {
         'NAME': 'mgtu',
         'USER': 'student',
         'PASSWORD': 'root',
-        'HOST': '192.168.43.241',  # Обычно 'localhost' для локальной базы данных
+        'HOST': '192.168.1.132',  # Обычно 'localhost' для локальной базы данных
         'PORT': '5432',  # Обычно '5432' для PostgreSQL
     }
 }

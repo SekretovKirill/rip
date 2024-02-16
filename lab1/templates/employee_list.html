@@ -9,11 +9,16 @@
     <input type="text" id="filter" name="filter" value="{{ request.GET.filter }}">
     <button type="submit">Применить фильтр</button>
 </form>
+<a href="{% url 'last_made_request_details' %}" class="button">Корзина</a>
 <ul>
     {% for employee in employees %}
         <li>
             <a href="{% url 'employee_detail' employee.id %}">
-                <img src="{{ employee.photo.url }}" alt="{{ employee.name }}">
+                {% if employee.photo %}
+                    <img src="{{ employee.photo.url }}" alt="{{ employee.name }} Photo">
+                {% else %}
+                    <img src="http://127.0.0.1:9000/mock-pics/OIG.jpg" alt="Mock Photo">
+                {% endif %}
                 <h2>{{ employee.name }}</h2>
                 <p>{{ employee.role }}</p>
             </a>

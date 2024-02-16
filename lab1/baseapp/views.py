@@ -1,7 +1,7 @@
 from django.http import HttpResponse
 from django.shortcuts import render, redirect
 from django.db import connection
-from .models import Employees
+from .models import Employees, Requests, Request_Employees
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from django.shortcuts import redirect
@@ -39,8 +39,39 @@ def employee_detail(request, employee_id):
 
     return render(request, 'employee_detail.html', {'employee': employee})
 
+from .models import Requests, Request_Employees, Employees
 
-# Пропуски на выходные и праздничные дни. Услуги - список сотрудников, заявки - заявка на работу в выходной, праздничный или ночью с указанием причины.
+def get_last_made_request_employees():
+    # Получаем последнюю заявку со статусом 'entered'
+    last_made_request = Requests.objects.filter(status='entered').order_by('-created_date').first()
+
+    if last_made_request:
+        # Получаем всех сотрудников, связанных с этой заявкой через связующую таблицу и со статусом 'True'
+        request_employees = Request_Employees.objects.filter(request=last_made_request, employee__status=True)
+        
+        employees = []
+
+        for request_employee in request_employees:
+            # Получаем дополнительные детали о сотруднике из модели Employees
+            employee_details = Employees.objects.get(pk=request_employee.employee.id)
+            employees.append(employee_details)
+            print(employee_details.photo)
+
+        # Возвращаем последнюю заявку и список сотрудников
+        return last_made_request, employees
+    else:
+        return None, None
+
+
+def last_made_request_details(request):
+    # Получаем последнюю заявку и список сотрудников
+    last_made_request, employees = get_last_made_request_employees()
+
+    if last_made_request:
+        return render(request, 'request.html', {'last_made_request': last_made_request, 'employees': employees})
+    else:
+        return render(request, 'request.html', {'error_message': 'Последняя заявка со статусом "made" не найдена.'})
+
 
 # Employees = [
 #         {'title': 'Олег Иванов', 'id': 1, 'photo_url': '/static/man1.jpg', 'other_data': '''Занимал должности инженера по логистике, менеджера проекта по бережливому производству в логистике, менеджера по складской и транспортной логистике, руководителя отдела логистики электронной коммерции.

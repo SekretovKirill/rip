@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+
+{% block title %}Детали последней заявки{% endblock %}
+
+{% block content %}
+  <div class="container">
+    <h1>Детали заявки</h1>
+    {% if last_made_request %}
+      <p>Название: {{ last_made_request.name }}</p>
+      <p>Статус: {{ last_made_request.status }}</p>
+      <p>Дата создания: {{ last_made_request.created_date }}</p>
+      <p>Дата формирования: {{ last_made_request.formation_date }}</p>
+      <p>Дата завершения: {{ last_made_request.completion_date }}</p>
+      <p>Информация: {{ last_made_request.info }}</p>
+    {% else %}
+      <p>{{ error_message }}</p>
+    {% endif %}
+
+    <div class="row">
+      {% if employees %}
+        {% for employee in employees %}
+            <li>
+                <a href="{% url 'employee_detail' employee.id %}">
+                    {% if employee.photo %}
+                        <img src="{{ employee.photo.url }}" alt="{{ employee.name }} Photo">
+                    {% else %}
+                        <img src="http://127.0.0.1:9000/mock-pics/OIG.jpg" alt="Mock Photo">
+                    {% endif %}
+                    <h2>{{ employee.name }}</h2>
+                    <p>{{ employee.role }}</p>
+                </a>
+            </li>
+        {% endfor %}
+      {% else %}
+        <p>Нет сотрудников для отображения.</p>
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}
